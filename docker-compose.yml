@@ -1,0 +1,83 @@
+version: '3'
+
+services:
+  spark-master:
+    image: bitnami/spark:3.5.0
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_SUBMIT_ARGS=--packages com.datastax.spark:spark-cassandra-connector_2.12:3.5.0, mysql:mysql-connector-java:8.0.30
+    ports:
+      - "8080:8080"  # Spark Master UI
+      - "7077:7077"  # Spark Master Port
+    networks:
+      - spark_network
+
+  spark-worker-1:
+    image: bitnami/spark:3.5.0
+    container_name: spark-worker-1
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_SUBMIT_ARGS=--packages com.datastax.spark:spark-cassandra-connector_2.12:3.5.0, mysql:mysql-connector-java:8.0.30
+    depends_on:
+      - spark-master
+      - cassandra
+      - mysql
+    networks:
+      - spark_network
+
+  spark-worker-2:
+    image: bitnami/spark:3.5.0
+    container_name: spark-worker-2
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_SUBMIT_ARGS=--packages com.datastax.spark:spark-cassandra-connector_2.12:3.5.0, mysql:mysql-connector-java:8.0.30
+    depends_on:
+      - spark-master
+      - cassandra
+      - mysql
+    networks:
+      - spark_network
+
+  cassandra:
+    image: cassandra:4.1
+    container_name: cassandra
+    ports:
+      - "9042:9042"  # Cassandra CQL Port
+    environment:
+      - CASSANDRA_CLUSTER_NAME=TestCluster
+      - CASSANDRA_DC=datacenter1
+      - CASSANDRA_RACK=rack1
+    networks:
+      - spark_network
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-container
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 123
+      MYSQL_DATABASE: test
+      MYSQL_USER: truong
+      MYSQL_PASSWORD: 123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql       # Persist data using volumes
+      - ./mysql-init:/docker-entrypoint-initdb.d # Initialization scripts (optional)
+    networks:
+      - spark_network
+
+volumes:
+  mysql_data:
+
+networks:
+  spark_network:
+    driver: bridge
